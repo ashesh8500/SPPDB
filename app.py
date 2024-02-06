@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import yfinance as yfinance
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import altair as alt
 
 
@@ -27,10 +27,10 @@ class Portfolio:
         prices = data['Adj Close'].round(2)
         return prices
     
-    def get_attractiveness(self, n_years=3):
+    def get_attractiveness(self, n_years=3, date_of_calculation=datetime.now()):
         attractiveness_df = pd.DataFrame()
         for ticker in self.symbols:
-            historical_prices: pd.DataFrame = self.prices[ticker].loc[datetime.today()-timedelta(days=n_years*365):]
+            historical_prices: pd.DataFrame = self.prices[ticker].loc[date_of_calculation-timedelta(days=n_years*365):]
             mean = historical_prices.mean()
             std = historical_prices.std()
             last_price = historical_prices.iloc[-1]
@@ -51,8 +51,7 @@ class Portfolio:
         
         
 def main():
-    st.title('Portfolio Analysis')
-    st.write('Welcome to the Portfolio Analysis App')
+    st.title('Protoype')
     st.write('Dashboard overview of your portfolio and its attractiveness')
     
     portfolio = {
@@ -74,20 +73,20 @@ def main():
     st.write(my_portfolio.dist)
     st.write('Your Portfolio Attractiveness')
     st.slider('Select the number of years to calculate attractiveness', min_value=1, max_value=5, value=3, key='years')
-    df = my_portfolio.get_attractiveness(n_years=st.session_state.years)
+    st.date_input('Select the date to calculate attractiveness', value=datetime.now(), key='date')
+    df = my_portfolio.get_attractiveness(n_years=st.session_state.years, date_of_calculation=st.session_state.date)
     df.index.name = 'Ticker'
     st.dataframe(df)
     df['Stock'] = df.index
-    st.write('Your Portfolio Attractiveness Plot')
+    # st.write('Your Portfolio Attractiveness Plot')
     # Calculate color based on attractiveness
     df['Color'] = df['Attractiveness'].apply(lambda x: 'green' if x > 0 else 'red')
-
     # Define color scale for gradientation
     df['Color'] = df['Attractiveness'].apply(lambda x: 'green' if x > 0 else 'red')
     # Define color scale for gradientation
     color_scale = alt.Scale(
         domain=[df['Attractiveness'].min(), df['Attractiveness'].max()],
-        range=['#FF0000', '#00FF00'],
+        range=['#00FF00', '#FF0000'],
         type='linear',
         interpolate='rgb',
         zero=False
@@ -100,11 +99,22 @@ def main():
         color=alt.Color('Attractiveness', scale=color_scale, sort=alt.SortField(field='Attractiveness', order='ascending')),
         tooltip=['Stock', 'Attractiveness']
     ).properties(
-        title='Your Portfolio Attractiveness Plot'
+        title='Portfolio Attractiveness Plot'
     )
 
     # Display the chart
     st.vega_lite_chart(chart.to_dict(), use_container_width=True)
+    
+    # plotting the 3 year performace of the portfolio
+    st.write('Portfolio Performance')
+    performance_chart = alt.Chart(my_portfolio.prices.reset_index().melt('Date', var_name='Stock', value_name='Price')).mark_line().encode(
+        x='Date',
+        y='Price',
+        color='Stock'
+    ).properties(
+        title='Portfolio Performance'
+    )
+    st.altair_chart(performance_chart, use_container_width=True)
 
 if __name__ == '__main__':
     main()
