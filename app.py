@@ -5,7 +5,7 @@ import yfinance as yfinance
 import pandas as pd
 from datetime import datetime, timedelta
 import altair as alt
-import numpy as np
+
 
 class Portfolio:
     
@@ -13,7 +13,7 @@ class Portfolio:
         self.portfolio = portfolio
         self.symbols = list(portfolio.keys())
         self.prices: pd.DataFrame = self.get_prices(portfolio)
-        self.dist = pd.DataFrame(self.present_distribution(), index=[datetime.now().date()])
+        self.dist = pd.DataFrame(self.present_distribution(), index=[datetime.now().date()]).map('{:.2%}'.format)
         self.cash_value = sum(map(lambda x: x[1] * self.portfolio[x[0]], self.prices.iloc[-1].items()))
         
     def present_distribution(self):
@@ -53,7 +53,7 @@ class Portfolio:
 def main():
     st.title('Portfolio Analysis')
     st.write('Welcome to the Portfolio Analysis App')
-    st.write('This app will help you analyze your portfolio and make informed decisions')
+    st.write('Dashboard overview of your portfolio and its attractiveness')
     
     portfolio = {
         'AAPL': 10,
@@ -67,13 +67,14 @@ def main():
     
     my_portfolio = Portfolio(portfolio)
     st.write('Your Portfolio')
-    st.write(my_portfolio.portfolio)
+    st.dataframe(pd.DataFrame(my_portfolio.portfolio, index=['Shares']))
     st.write('Your Portfolio Value')
-    st.write(my_portfolio.cash_value)
+    st.write(f'${"{:,.2f}".format(my_portfolio.cash_value)}')
     st.write('Your Portfolio Distribution')
     st.write(my_portfolio.dist)
     st.write('Your Portfolio Attractiveness')
-    df = my_portfolio.get_attractiveness()
+    st.slider('Select the number of years to calculate attractiveness', min_value=1, max_value=5, value=3, key='years')
+    df = my_portfolio.get_attractiveness(n_years=st.session_state.years)
     df.index.name = 'Ticker'
     st.dataframe(df)
     df['Stock'] = df.index
