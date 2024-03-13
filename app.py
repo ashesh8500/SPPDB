@@ -10,10 +10,10 @@ from Portfolio import Portfolio
 def main():
     st.title('Protoype')
     st.write('Dashboard overview of your portfolio and its attractiveness')
-    pf = pd.read_csv('nasdaq weights adjustment.csv', index_col='ticker')
-    pf.drop('Unnamed: 0', axis=1, inplace=True)
-    pf.loc[:,['nd_weights', 'portfolio_weight']] =pf.loc[:,['nd_weights', 'portfolio_weight']].apply(lambda x: x.str.replace('%', '').astype(float)/100)
-    pf = pf.loc[:,['company_name','nd_weights', 'portfolio_weight']].dropna()
+    # pf = pd.read_csv('nasdaq weights adjustment.csv', index_col='ticker')
+    # pf.drop('Unnamed: 0', axis=1, inplace=True)
+    # pf.loc[:,['nd_weights', 'portfolio_weight']] =pf.loc[:,['nd_weights', 'portfolio_weight']].apply(lambda x: x.str.replace('%', '').astype(float)/100)
+    # pf = pf.loc[:,['company_name','nd_weights', 'portfolio_weight']].dropna()
     portfolio = {
         'AAPL': 10,
         'MSFT': 20,
@@ -23,8 +23,23 @@ def main():
         'TSLA': 5,
         'NFLX': 10
     }
+    portfolio_2 = {
+        "MSFT": 0.165567903559993,
+        "AAPL": 0.154077980787342,
+        "NVDA": 0.1047,
+        "AMZN": 0.0978,
+        "META": 0.0934,
+        "AVGO": 0.085,
+        "TSLA": 0.053099999999999994,
+        "COST": 0.0467,
+        "GOOGL": 0.0441,
+        "GOOG": 0.0429,
+        "AMD": 0.0403,
+        "NFLX": 0.0369,
+        "ADBE": 0.0354,
+    }
 
-    my_portfolio = Portfolio(pf['portfolio_weight'].to_dict())
+    my_portfolio = Portfolio(portfolio_2)
     st.write('Your Portfolio')
     st.dataframe(pd.DataFrame(my_portfolio.portfolio, index=['Shares']))
     st.write('Your Portfolio Value')
@@ -80,5 +95,6 @@ def main():
         title='Portfolio Performance'
     )
     st.altair_chart(performance_chart, use_container_width=True)
+
 if __name__ == '__main__':
     main()
