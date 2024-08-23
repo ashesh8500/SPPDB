@@ -1,43 +1,26 @@
 import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 import yfinance as yfinance
 import pandas as pd
 from datetime import date, datetime, timedelta
+from rebalancer.Portfolio import Portfolio
 import altair as alt
-from Portfolio import Portfolio
+import json
 
 def main():
-    st.title('Protoype')
+    st.title('Prototype')
     st.write('Dashboard overview of your portfolio and its attractiveness')
-    # pf = pd.read_csv('nasdaq weights adjustment.csv', index_col='ticker')
-    # pf.drop('Unnamed: 0', axis=1, inplace=True)
-    # pf.loc[:,['nd_weights', 'portfolio_weight']] =pf.loc[:,['nd_weights', 'portfolio_weight']].apply(lambda x: x.str.replace('%', '').astype(float)/100)
-    # pf = pf.loc[:,['company_name','nd_weights', 'portfolio_weight']].dropna()
-    portfolio = {
-        'AAPL': 10,
-        'MSFT': 20,
-        'GOOGL': 5,
-        'AMZN': 3,
-        'META': 7,
-        'TSLA': 5,
-        'NFLX': 10
-    }
+
     portfolio_2 = {
-        "MSFT": 0.165567903559993,
-        "AAPL": 0.154077980787342,
-        "NVDA": 0.1047,
-        "AMZN": 0.0978,
         "META": 0.0934,
-        "AVGO": 0.085,
-        "TSLA": 0.053099999999999994,
-        "COST": 0.0467,
-        "GOOGL": 0.0441,
-        "GOOG": 0.0429,
-        "AMD": 0.0403,
+        "AMZN": 0.0978,
         "NFLX": 0.0369,
-        "ADBE": 0.0354,
+        "GOOG": 0.0429,
+        "AAPL": 0.154077980787342,
     }
+    with open("portfolio.json", "r") as f:
+        portfolio_2 = json.load(f)
 
     my_portfolio = Portfolio(portfolio_2)
     st.write('Your Portfolio')
@@ -56,10 +39,8 @@ def main():
     st.date_input('Select the date to calculate performance', value=datetime.now(), key='performance_date')
     st.dataframe(my_portfolio.get_performance(n_years=[3, 4], date_of_calculation=st.session_state.performance_date))
     df['Stock'] = df.index
-    # st.write('Your Portfolio Attractiveness Plot')
+
     # Calculate color based on attractiveness
-    df['Color'] = df['Attractiveness'].apply(lambda x: 'green' if x > 0 else 'red')
-    # Define color scale for gradientation
     df['Color'] = df['Attractiveness'].apply(lambda x: 'green' if x > 0 else 'red')
     # Define color scale for gradientation
     color_scale = alt.Scale(
@@ -70,11 +51,10 @@ def main():
         zero=False
     )
 
-
-
     # Create Vega-Lite chart
-    chart = alt.Chart(df).mark_bar().encode(
-        x='Stock',
+    df_sorted = df.sort_values(by='Attractiveness', ascending=False)
+    chart = alt.Chart(df_sorted).mark_bar().encode(
+        x=alt.X('Stock', sort='-y'),
         y='Attractiveness',
         color=alt.Color('Attractiveness', scale=color_scale, sort=alt.SortField(field='Attractiveness', order='ascending')), # type: ignore
         tooltip=['Stock', 'Attractiveness']
@@ -85,7 +65,23 @@ def main():
     # Display the chart
     st.altair_chart(chart, use_container_width=True)
 
-    # plotting the 3 year performace of the portfolio
+    # plotting the weighted attractiveness scores
+    # Create a new column with the weighted attractiveness
+
+    df['Weighted Attractiveness'] = df['Attractiveness'] * my_portfolio.dist
+    weighted_chart = alt.Chart(df).mark_bar().encode(
+        x=alt.X('Stock', sort='-y'),
+        y='Weighted Attractiveness',
+        color=alt.Color('Weighted Attractiveness', scale=color_scale, sort=alt.SortField(field='Weighted Attractiveness', order='ascending')), # type: ignore
+        tooltip=['Stock', 'Weighted Attractiveness']
+    ).properties(
+        title='Portfolio Weighted Attractiveness Plot'
+    )
+
+    # Display the chart
+    st.altair_chart(weighted_chart, use_container_width=True)
+
+    # plotting the 3 year performance of the portfolio
     st.write('Portfolio Performance')
     performance_chart = alt.Chart(my_portfolio.prices.reset_index().melt('Date', var_name='Stock', value_name='Price')).mark_line().encode(
         x='Date',
@@ -95,6 +91,26 @@ def main():
         title='Portfolio Performance'
     )
     st.altair_chart(performance_chart, use_container_width=True)
+
+    Optimization and Backtesting
+    st.write('Optimize and Backtest Portfolio')
+    history_len = st.number_input('History Length (years)', min_value=-1, max_value=10, value=-1)
+    num_tests = st.number_input('Number of Tests', min_value=100, max_value=2000, value=2000)
+    every_nth = st.number_input('Rebalance Frequency (days)', min_value=1, max_value=365, value=30)
+
+    if st.button('Run Optimization'):
+        optimized_portfolio = my_portfolio.optimize_and_backtest(num_tests=num_tests, n_years=history_len, every_nth=every_nth)
+        st.write('Optimization Results')
+        st.dataframe(optimized_portfolio)
+
+        st.write('Portfolio Allocation Over Time')
+        allocation_fig = my_portfolio.plot_allocation()
+        st.plotly_chart(allocation_fig, use_container_width=True)
+
+        st.write('Portfolio Performance Over Time')
+        optimization_fig = my_portfolio.plot_optimization()
+        st.plotly_chart(optimization_fig, use_container_width=True)
+
 
 if __name__ == '__main__':
     main()
