@@ -5,9 +5,9 @@ import yfinance as yfinance
 import pandas as pd
 from datetime import date, datetime, timedelta
 from rebalancer.Portfolio import Portfolio
-import altair as alt
 import json
-
+from pdb import Pdb
+pdb = Pdb()
 def main():
     st.title('Prototype')
     st.write('Dashboard overview of your portfolio and its attractiveness')
@@ -41,58 +41,29 @@ def main():
     df['Stock'] = df.index
 
     # Calculate color based on attractiveness
-    df['Color'] = df['Attractiveness'].apply(lambda x: 'green' if x > 0 else 'red')
-    # Define color scale for gradientation
-    color_scale = alt.Scale(
-        domain=[df['Attractiveness'].min(), df['Attractiveness'].max()], # type: ignore
-        range=['#00FF00', '#FF0000'],
-        type='linear',
-        interpolate='rgb',
-        zero=False
-    )
+    df['Color'] = df['Attractiveness'].apply(lambda x: 'red' if x > 0 else 'green')
 
-    # Create Vega-Lite chart
+    # Create Plotly chart for Attractiveness
     df_sorted = df.sort_values(by='Attractiveness', ascending=False)
-    chart = alt.Chart(df_sorted).mark_bar().encode(
-        x=alt.X('Stock', sort='-y'),
-        y='Attractiveness',
-        color=alt.Color('Attractiveness', scale=color_scale, sort=alt.SortField(field='Attractiveness', order='ascending')), # type: ignore
-        tooltip=['Stock', 'Attractiveness']
-    ).properties(
-        title='Portfolio Attractiveness Plot'
-    )
-
-    # Display the chart
-    st.altair_chart(chart, use_container_width=True)
+    chart = px.bar(df_sorted, x='Stock', y='Attractiveness', color='Attractiveness',
+                   color_continuous_scale=px.colors.diverging.RdYlGn[::-1], title='Portfolio Attractiveness Plot')
+    st.plotly_chart(chart, use_container_width=True)
 
     # plotting the weighted attractiveness scores
-    # Create a new column with the weighted attractiveness
-
-    df['Weighted Attractiveness'] = df['Attractiveness'] * my_portfolio.dist
-    weighted_chart = alt.Chart(df).mark_bar().encode(
-        x=alt.X('Stock', sort='-y'),
-        y='Weighted Attractiveness',
-        color=alt.Color('Weighted Attractiveness', scale=color_scale, sort=alt.SortField(field='Weighted Attractiveness', order='ascending')), # type: ignore
-        tooltip=['Stock', 'Weighted Attractiveness']
-    ).properties(
-        title='Portfolio Weighted Attractiveness Plot'
-    )
-
-    # Display the chart
-    st.altair_chart(weighted_chart, use_container_width=True)
+    df["dist"] = my_portfolio.dist.iloc[0]
+    df["Weighted Attractiveness"] = df["Attractiveness"] * df["dist"]
+    df_sorted_weighted = df.sort_values(by='Weighted Attractiveness', ascending=False)
+    weighted_chart = px.bar(df_sorted_weighted, x='Stock', y='Weighted Attractiveness', color='Weighted Attractiveness',
+                            color_continuous_scale=px.colors.diverging.RdYlGn[::-1], title='Portfolio Weighted Attractiveness Plot')
+    st.plotly_chart(weighted_chart, use_container_width=True)
 
     # plotting the 3 year performance of the portfolio
     st.write('Portfolio Performance')
-    performance_chart = alt.Chart(my_portfolio.prices.reset_index().melt('Date', var_name='Stock', value_name='Price')).mark_line().encode(
-        x='Date',
-        y='Price',
-        color='Stock'
-    ).properties(
-        title='Portfolio Performance'
-    )
-    st.altair_chart(performance_chart, use_container_width=True)
+    performance_df = my_portfolio.prices.reset_index().melt('Date', var_name='Stock', value_name='Price')
+    performance_chart = px.line(performance_df, x='Date', y='Price', color='Stock', title='Portfolio Performance')
+    st.plotly_chart(performance_chart, use_container_width=True)
 
-    Optimization and Backtesting
+    # Optimization and Backtesting
     st.write('Optimize and Backtest Portfolio')
     history_len = st.number_input('History Length (years)', min_value=-1, max_value=10, value=-1)
     num_tests = st.number_input('Number of Tests', min_value=100, max_value=2000, value=2000)
