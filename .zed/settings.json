@@ -1,0 +1,8 @@
+{
+  "jupyter": {
+    "enabled": true,
+    "kernel_selections": {
+      "python": "base"
+    }
+  }
+}
