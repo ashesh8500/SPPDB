@@ -13,11 +13,40 @@ def main():
     st.title('Prototype')
     st.write('Dashboard overview of your portfolio and its attractiveness')
 
-    with open("portfolio.json", "r") as f:
-        portfolio_2 = json.load(f)
+    # Load saved portfolios
     tickers = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "TATAMOTORS.NS", "SUNPHARMA.NS", "SBIN.NS", "TATAPOWER.NS", "VEDL.NS"]
     init_weights = np.ones(len(tickers)) / len(tickers)
     portfolio = dict(zip(tickers, init_weights))
+
+    with open("portfolio.json", "r") as f:
+        portfolio_2 = json.load(f)
+
+    # Option to select a saved portfolio or create a custom one
+    portfolio_option = st.radio("Choose a portfolio option:", ("Saved Portfolio 1", "Saved Portfolio 2", "Custom Portfolio"))
+
+    if portfolio_option == "Saved Portfolio 1":
+        selected_portfolio = portfolio
+    elif portfolio_option == "Saved Portfolio 2":
+        selected_portfolio = portfolio_2
+    else:
+        # Custom portfolio input
+        st.write("Enter your custom portfolio:")
+        custom_tickers = st.text_input("Enter tickers separated by commas:").split(',')
+        custom_tickers = [ticker.strip() for ticker in custom_tickers if ticker.strip()]
+
+        if custom_tickers:
+            custom_weights = st.text_input("Enter corresponding weights separated by commas:").split(',')
+            custom_weights = [float(weight.strip()) for weight in custom_weights if weight.strip()]
+
+            if len(custom_tickers) == len(custom_weights):
+                selected_portfolio = dict(zip(custom_tickers, custom_weights))
+            else:
+                st.error("Number of tickers and weights don't match. Using equal weights.")
+                init_weights = np.ones(len(custom_tickers)) / len(custom_tickers)
+                selected_portfolio = dict(zip(custom_tickers, init_weights))
+        else:
+            st.error("No tickers entered. Using default portfolio.")
+            selected_portfolio = portfolio
 
     my_portfolio = Portfolio(portfolio)
     st.write('Your Portfolio')
