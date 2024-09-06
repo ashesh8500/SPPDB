@@ -4,7 +4,7 @@ from typing import Dict, List
 
 def calculate_returns(prices: pd.DataFrame) -> pd.DataFrame:
     """Calculate returns from price data."""
-    return prices.pct_change()
+    return prices.pct_change(fill_method=None)
 
 def calculate_volatility(returns: pd.DataFrame, window: int) -> pd.DataFrame:
     """Calculate rolling volatility of returns."""

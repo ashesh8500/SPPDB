@@ -47,8 +47,9 @@ def main():
         else:
             st.error("No tickers entered. Using default portfolio.")
             selected_portfolio = portfolio
-
-    my_portfolio = Portfolio(portfolio)
+    st.write('Selected Portfolio')
+    st.write(selected_portfolio)
+    my_portfolio = Portfolio(selected_portfolio)
     st.write('Your Portfolio')
     st.dataframe(pd.DataFrame(my_portfolio.portfolio, index=['Shares']))
     st.write('Your Portfolio Value')

@@ -13,6 +13,7 @@ vbt.settings['portfolio']['seed'] = 42
 vbt.settings['portfolio']['stats']['incl_unrealized'] = True
 
 class PortfolioOptimizer:
+
     def __init__(self, initial_weights: Dict[str, float], num_tests: int = 2000, history_len: int = -1, every_nth: int = 30):
         self.initial_weights = initial_weights
         self.symbols = list(initial_weights.keys())
@@ -76,7 +77,7 @@ class PortfolioOptimizer:
 
     def vbao_find_weights(self, sc, price, initial_weights: Dict[str, float], num_tests) -> Tuple[float, np.ndarray]:
         current_weights = self.get_current_weights(sc, initial_weights)
-        price_df = pd.DataFrame(price, columns=self.symbols)
+        price_df = pd.DataFrame(price, columns=list(self.symbols))
         window = min(len(price_df) - 1, 252 if self.history_len == -1 else self.history_len)
 
         returns = calculate_returns(price_df)
@@ -90,7 +91,7 @@ class PortfolioOptimizer:
         new_weights = self.adjust_weights(current_weights, attractiveness)
         new_weights = clip_weights(new_weights, min_weight=0.05, max_weight=0.4)
 
-        return 1.0, new_weights.values
+        return 1.0, new_weights.to_numpy()
 
 
     def get_current_weights(self, sc, initial_weights: Dict[str, float]) -> pd.Series:
@@ -98,12 +99,11 @@ class PortfolioOptimizer:
             return pd.Series(initial_weights)
         current_value = sum(sc.last_position * sc.last_value)
         return pd.Series(sc.last_position * sc.last_value / current_value, index=initial_weights.keys())
-
-    @staticmethod
-    def calculate_attractiveness(vol_change: pd.Series, momentum_change: pd.Series) -> pd.Series:
-        vol_score = 1 / (1 + vol_change)
-        momentum_score = 1 + momentum_change
-        return vol_score * momentum_score
+        @staticmethod
+        def calculate_attractiveness(vol_change: pd.Series, momentum_change: pd.Series) -> pd.Series:
+            vol_score = 1 / (1 + vol_change)
+            momentum_score = 1 + momentum_change
+            return pd.Series(vol_score.values * momentum_score.values, index=vol_change.index)
 
     @staticmethod
     def adjust_weights(current_weights: pd.Series, attractiveness: pd.Series) -> pd.Series:
