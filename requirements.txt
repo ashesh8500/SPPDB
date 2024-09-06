@@ -5,5 +5,5 @@ altair
 matplotlib
 seaborn
 plotly
-vectorbt
+vectorbt[full]
 numba
