@@ -6,4 +6,4 @@ matplotlib
 seaborn
 plotly
 vectorbt
-
+numba
