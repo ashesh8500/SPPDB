@@ -4,3 +4,6 @@ yfinance
 altair
 matplotlib
 seaborn
+plotly
+vectorbt
+
