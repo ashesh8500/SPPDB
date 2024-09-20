@@ -22,7 +22,7 @@ def main():
         portfolio_2 = json.load(f)
 
     # Option to select a saved portfolio or create a custom one
-    portfolio_option = st.radio("Choose a portfolio option:", ("Saved Portfolio 1", "Saved Portfolio 2", "Custom Portfolio"))
+    portfolio_option = st.radio("Choose a portfolio option:", ("Saved Portfolio 1", "Saved Portfolio 2", "Custom Portfolio"), index=1)
 
     if portfolio_option == "Saved Portfolio 1":
         selected_portfolio = portfolio

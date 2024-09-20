@@ -99,11 +99,12 @@ class PortfolioOptimizer:
             return pd.Series(initial_weights)
         current_value = sum(sc.last_position * sc.last_value)
         return pd.Series(sc.last_position * sc.last_value / current_value, index=initial_weights.keys())
-        @staticmethod
-        def calculate_attractiveness(vol_change: pd.Series, momentum_change: pd.Series) -> pd.Series:
-            vol_score = 1 / (1 + vol_change)
-            momentum_score = 1 + momentum_change
-            return pd.Series(vol_score.values * momentum_score.values, index=vol_change.index)
+
+    @staticmethod
+    def calculate_attractiveness(vol_change: pd.Series, momentum_change: pd.Series) -> pd.Series:
+        vol_score = 1 / (1 + vol_change)
+        momentum_score = 1 + momentum_change
+        return pd.Series(vol_score.values * momentum_score.values, index=vol_change.index)
 
     @staticmethod
     def adjust_weights(current_weights: pd.Series, attractiveness: pd.Series) -> pd.Series:
