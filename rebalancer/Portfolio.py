@@ -8,6 +8,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from numba import njit
+import pdb
 
 class Portfolio:
     def __init__(self, portfolio: Dict[str, float]):
@@ -81,34 +82,26 @@ class Portfolio:
     def get_orders_today(self) -> pd.DataFrame:
         current_prices = self.prices.iloc[-1]
         current_value = sum(shares * current_prices[ticker] for ticker, shares in self.portfolio.items())
-        current_weights = {ticker: (shares * current_prices[ticker]) / current_value
-                           for ticker, shares in self.portfolio.items()}
+        current_weights = {ticker: (shares * current_prices[ticker]) / current_value for ticker, shares in self.portfolio.items()}
 
         optimizer = PortfolioOptimizer(current_weights)
-        new_weights = optimizer.calculate_new_weights(self.prices)
+        new_weights, attractiveness = optimizer.calculate_new_weights(self.prices)
 
-        orders = []
-        for ticker in self.portfolio.keys():
-            current_weight = current_weights.get(ticker, 0)
-            new_weight = new_weights.get(ticker, 0)
-            weight_change = new_weight - current_weight
-
-            if abs(weight_change) > 0.01:  # Only suggest orders for significant changes
-                current_shares = self.portfolio.get(ticker, 0)
-                new_shares = (new_weight * current_value) / current_prices[ticker]
-                order_size = new_shares - current_shares
-
-                orders.append({
-                    'asset': ticker,
-                    'current_weight': current_weight,
-                    'new_weight': new_weight,
-                    'weight_change': weight_change,
-                    'order_size': order_size,
-                    'current_price': current_prices[ticker]
-                })
+        orders = [
+            {
+                'asset': ticker,
+                'current_weight': current_weight,
+                'new_weight': new_weights.get(ticker, 0),
+                'weight_change': new_weights.get(ticker, 0) - current_weight,
+                'order_size': (new_weights.get(ticker, 0) * current_value) / current_prices[ticker] - self.portfolio.get(ticker, 0),
+                'current_price': current_prices[ticker],
+                'attractiveness': attractiveness.get(ticker, 0)
+            }
+            for ticker, current_weight in current_weights.items()
+            if abs(new_weights.get(ticker, 0) - current_weight) > 0.01
+        ]
 
         return pd.DataFrame(orders)
-
 
 
     def get_optimized_weights(self) -> pd.DataFrame:
@@ -229,7 +222,7 @@ class PortfolioOptimizer:
         new_weights = self.adjust_weights(pd.Series(self.initial_weights), attractiveness)
         new_weights = Portfolio.clip_weights(new_weights, min_weight=0.05, max_weight=0.4)
 
-        return new_weights.to_dict()
+        return new_weights.to_dict(), attractiveness
 
     def run_simulation(self, price: pd.DataFrame) -> vbt.Portfolio:
         vbao_srb_sharpe = np.full(price.shape[0], np.nan)
