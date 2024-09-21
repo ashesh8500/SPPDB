@@ -120,6 +120,8 @@ def main():
         .value_counts().unstack(fill_value=0))
     st.write('Positions')
     st.dataframe(my_portfolio.pyopt.trades.records_readable)
+    st.write("orders today")
+    st.write(my_portfolio.get_orders_today())
 
 
 

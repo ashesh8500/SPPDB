@@ -19,7 +19,7 @@ class Portfolio:
         self.ndx_holdings = self.fetch_index_holdings('QQQ')
         self.pyopt = None
         self.optimizer = PortfolioOptimizer(self.portfolio)
-
+        self.weight_change_log = []
     def fetch_stock_data(self, tickers: List[str], period: str = '5y') -> pd.DataFrame:
         """Fetch historical stock data for given tickers."""
         data = yf.download(tickers, period=period)
@@ -46,6 +46,21 @@ class Portfolio:
     def get_performance(self, n_years: List[int] = [3, 4], date_of_calculation: datetime = datetime.now()) -> pd.DataFrame:
         return self.calculate_performance(self.prices, self.portfolio, n_years, date_of_calculation)
 
+    def get_orders_with_reasons(self) -> pd.DataFrame:
+        if self.pyopt is None:
+            raise ValueError("Optimization has not been run yet. Please run optimize_and_backtest first.")
+
+        orders = self.pyopt.orders.records_readable
+        weight_changes = pd.DataFrame(self.weight_change_log)
+
+        # Merge orders with weight changes
+        combined = pd.merge(orders, weight_changes, left_index=True, right_on='date', how='left')
+
+        # Format the output
+        combined['reason'] = combined.apply(lambda row: row['reasons'].get(row['asset'], 'No change') if isinstance(row['reasons'], dict) else 'No change', axis=1)
+        combined['weight_change'] = combined.apply(lambda row: row['weight_change'].get(row['asset'], 0) if isinstance(row['weight_change'], dict) else 0, axis=1)
+
+        return combined[['asset', 'size', 'weight_change', 'reason']]
     def optimize_and_backtest(self, n_years: Optional[int] = None, num_tests: int = 1000, every_nth: int = 30):
         if n_years is None:
             n_years = len(self.prices)
@@ -63,16 +78,38 @@ class Portfolio:
             raise ValueError("Optimization has not been run yet. Please run optimize_and_backtest first.")
         return self.plot_allocation_helper(self.pyopt, self.symbols)
 
-    def get_orders_today(self, target_weights: Dict[str, float]) -> Dict[str, float]:
-        current_weights = self.present_distribution()
-        orders = {}
-        for symbol in self.symbols:
-            current_weight = current_weights.get(symbol, 0)
-            target_weight = target_weights.get(symbol, 0)
-            weight_diff = target_weight - current_weight
-            if weight_diff != 0:
-                orders[symbol] = weight_diff
-        return orders
+    def get_orders_today(self) -> pd.DataFrame:
+        current_prices = self.prices.iloc[-1]
+        current_value = sum(shares * current_prices[ticker] for ticker, shares in self.portfolio.items())
+        current_weights = {ticker: (shares * current_prices[ticker]) / current_value
+                           for ticker, shares in self.portfolio.items()}
+
+        optimizer = PortfolioOptimizer(current_weights)
+        new_weights = optimizer.calculate_new_weights(self.prices)
+
+        orders = []
+        for ticker in self.portfolio.keys():
+            current_weight = current_weights.get(ticker, 0)
+            new_weight = new_weights.get(ticker, 0)
+            weight_change = new_weight - current_weight
+
+            if abs(weight_change) > 0.01:  # Only suggest orders for significant changes
+                current_shares = self.portfolio.get(ticker, 0)
+                new_shares = (new_weight * current_value) / current_prices[ticker]
+                order_size = new_shares - current_shares
+
+                orders.append({
+                    'asset': ticker,
+                    'current_weight': current_weight,
+                    'new_weight': new_weight,
+                    'weight_change': weight_change,
+                    'order_size': order_size,
+                    'current_price': current_prices[ticker]
+                })
+
+        return pd.DataFrame(orders)
+
+
 
     def get_optimized_weights(self) -> pd.DataFrame:
         if self.pyopt is None:
@@ -177,6 +214,22 @@ class PortfolioOptimizer:
         self.num_tests = num_tests
         self.history_len = history_len
         self.every_nth = every_nth
+
+    def calculate_new_weights(self, prices: pd.DataFrame) -> Dict[str, float]:
+        price_df = prices[self.symbols].iloc[-252:]  # Use last year of data
+
+        returns = Portfolio.calculate_returns(price_df)
+        vol = Portfolio.calculate_volatility(returns, 252)
+        vol_change = vol.pct_change().iloc[-1]
+
+        momentum = Portfolio.calculate_momentum(returns, 252)
+        momentum_change = momentum.pct_change().iloc[-1]
+
+        attractiveness = self.calculate_attractiveness(vol_change, momentum_change)
+        new_weights = self.adjust_weights(pd.Series(self.initial_weights), attractiveness)
+        new_weights = Portfolio.clip_weights(new_weights, min_weight=0.05, max_weight=0.4)
+
+        return new_weights.to_dict()
 
     def run_simulation(self, price: pd.DataFrame) -> vbt.Portfolio:
         vbao_srb_sharpe = np.full(price.shape[0], np.nan)
